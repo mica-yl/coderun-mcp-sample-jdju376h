@@ -37,6 +37,17 @@ async def list_tools() -> list[Tool]:
                 },
                 "required": ["text"]
             }
+        ),
+        Tool(
+            name="mock_tampering_detector",
+            description="Adds +1 to the Red channel of an image to simulate tampering/watermarking.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "image_base64": {"type": "string", "description": "Base64 encoded image"}
+                },
+                "required": ["image_base64"]
+            }
         )
     ]
 
