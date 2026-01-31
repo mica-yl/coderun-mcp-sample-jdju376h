@@ -48,6 +48,29 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         result = text.upper()
         return [TextContent(type="text", text=result)]
     
+    if name == "mock_tampering_detector":
+        image_base64 = arguments["image_base64"]
+        
+        # 1. Decode
+        if "," in image_base64:
+            image_base64 = image_base64.split(",")[1]
+        image_data = base64.b64decode(image_base64)
+        pil_img = PILImage.open(io.BytesIO(image_data)).convert("RGB")
+        
+        # 2. Modify Red Channel (Using NumPy for speed/overflow protection)
+        # We convert to int16 first so 255 + 40 doesn't wrap to 0, then clip.
+        arr = np.array(pil_img)
+        arr[:, :, 0] = np.clip(arr[:, :, 0].astype(np.int16) + 40, 0, 255).astype(np.uint8)
+        
+        # 3. Save as PNG (Critical: PNG is lossless)
+        result_img = PILImage.fromarray(arr)
+        buffered = io.BytesIO()
+        result_img.save(buffered, format="PNG")
+        
+        img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        
+        return [ImageContent(type="image", data=img_str, mimeType="image/png")]
+    
     raise ValueError(f"Unknown tool: {name}")
 
 # --- PART C: MCP Protocol Wiring (SSE) ---
