@@ -19,7 +19,19 @@ async def root():
 @app.get("/welcome")
 async def welcome_json():
     """Welcome endpoint: Returns a JSON response."""
-    return {"message": "Welcome to the custom MCP Server!", "status": "running"}
+    return {
+        "message": "Welcome to the custom MCP Server!", 
+        "status": "running",
+        "tools": [
+            {
+                "name": t.name, 
+                "description": t.description,
+                # Optional: Include inputs if you want clients to see usage syntax
+                # "args": t.inputSchema
+            } 
+            for t in available_tools
+        ]
+    }
 
 # --- PART B: MCP Tool Logic ---
 
