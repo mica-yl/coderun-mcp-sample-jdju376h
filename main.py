@@ -103,14 +103,25 @@ async def list_tools() -> list[Tool]:
             }
         ),
         Tool(
-            name="mock_tampering_detector",
-            description="Adds +1 to the Red channel of an image to simulate tampering/watermarking.",
+            name="mock_image_tampering_detector",
+            description="accepts image and returns image with random red mask overlay",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "image_base64": {"type": "string", "description": "Base64 encoded image"}
                 },
                 "required": ["image_base64"]
+            }
+        ),
+        Tool(
+            name="tampering_detector",
+            description="accepts a pdf returns text result of tampering detector on image",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "pdf_base64": {"type": "string", "description": "Base64 encoded pdf"}
+                },
+                "required": ["pdf_base64"]
             }
         )
     ]
@@ -197,7 +208,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent | ImageConte
         result = text.upper()
         return [TextContent(type="text", text=result)]
     
-    if name == "mock_tampering_detector":
+    if name == "mock_image_tampering_detector":
         source_base64 = arguments["image_base64"]
         
         # 1. Decode header to check file type
@@ -245,6 +256,10 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent | ImageConte
             results.append(ImageContent(type="image", data=ctx.output_base64, mimeType="image/png"))
 
         return results
+    if name == "tampering_detector":
+        # source_base64 = arguments["pdf_base64"]
+        import random
+        return random.choice(["document is suspected for having tampering regions", "document is not suspected for having tampering regions"])
 
     raise ValueError(f"Unknown tool: {name}")
 
