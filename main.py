@@ -4,6 +4,29 @@ from mcp.server.sse import SseServerTransport
 from mcp.server import Server
 from mcp.types import Tool, TextContent
 
+import sys
+from collections import deque
+
+# We use a deque with maxlen to keep only the last 1000 lines
+log_buffer = deque(maxlen=1000)
+
+class StreamTee:
+    """Intercepts writes and sends them to both the original stream and our buffer."""
+    def __init__(self, original_stream):
+        self.original = original_stream
+
+    def write(self, message):
+        self.original.write(message)  # Print to actual console
+        if message.strip():           # Don't save empty newlines
+            log_buffer.append(message)
+
+    def flush(self):
+        self.original.flush()
+
+# Redirect stdout and stderr immediately
+sys.stdout = StreamTee(sys.stdout)
+sys.stderr = StreamTee(sys.stderr)
+
 # 1. Initialize the Web Server (FastAPI) and MCP Server
 app = FastAPI(title="My MCP Server")
 mcp_server = Server("demo-server")
@@ -18,7 +41,9 @@ async def root():
 
 @app.get("/welcome")
 async def welcome_json():
-    """Welcome endpoint: Returns a JSON response."""
+    """Returns a welcome message that lists all available tools dynamically."""
+    available_tools = await list_tools()
+
     return {
         "message": "Welcome to the custom MCP Server!", 
         "status": "running",
@@ -31,6 +56,20 @@ async def welcome_json():
             } 
             for t in available_tools
         ]
+    }
+
+@app.get("/log")
+async def view_logs():
+    """Returns the captured server logs."""
+    return "\n".join(log_buffer)
+
+@app.get("/log/json")
+async def view_logs():
+    """Returns the captured server logs."""
+    return {
+        "status": "logging_active",
+        "entry_count": len(log_buffer),
+        "logs": list(log_buffer)
     }
 
 # --- PART B: MCP Tool Logic ---
