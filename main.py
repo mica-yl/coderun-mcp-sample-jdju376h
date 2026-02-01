@@ -259,8 +259,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent | ImageConte
     if name == "tampering_detector":
         # source_base64 = arguments["pdf_base64"]
         import random
-        return random.choice(["document is suspected for having tampering regions", "document is not suspected for having tampering regions"])
-
+        result = random.choice(["document is suspected for having tampering regions", "document is not suspected for having tampering regions"])
+        return [TextContent(type="text", text=result)]
     raise ValueError(f"Unknown tool: {name}")
 
 # --- PART C: MCP Protocol Wiring (SSE) ---
