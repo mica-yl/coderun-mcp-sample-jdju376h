@@ -112,6 +112,7 @@ async def list_tools() -> list[Tool]:
 import base64
 import io
 from PIL import Image as PILImage
+import numpy as np
 
 class Base64ImageContext:
     def __init__(self, base64_string: str, format: str = "PNG"):
