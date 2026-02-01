@@ -5,12 +5,13 @@ from mcp.server import Server
 from mcp.types import Tool, TextContent
 
 import sys
+from io import TextIO
 from collections import deque
 
 # We use a deque with maxlen to keep only the last 1000 lines
 log_buffer = deque(maxlen=1000)
 
-class StreamTee:
+class StreamTee(TextIO):
     """Intercepts writes and sends them to both the original stream and our buffer."""
     def __init__(self, original_stream):
         self.original = original_stream
@@ -22,6 +23,13 @@ class StreamTee:
 
     def flush(self):
         self.original.flush()
+
+    def __getattr__(self, name):
+        """
+        Delegates all other attributes (isatty, fileno, encoding, etc.) 
+        to the original stream.
+        """
+        return getattr(self.original, name)
 
 # Redirect stdout and stderr immediately
 sys.stdout = StreamTee(sys.stdout)
@@ -43,7 +51,7 @@ async def root():
 async def welcome_json():
     """Returns a welcome message that lists all available tools dynamically."""
     available_tools = await list_tools()
-
+    
     return {
         "message": "Welcome to the custom MCP Server!", 
         "status": "running",
@@ -61,7 +69,7 @@ async def welcome_json():
 @app.get("/log")
 async def view_logs():
     """Returns the captured server logs."""
-    return "\n".join(list(log_buffer))
+    return "\n".join(log_buffer)
 
 @app.get("/log/json")
 async def view_logs():
