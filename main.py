@@ -5,7 +5,6 @@ from mcp.server import Server
 from mcp.types import Tool, TextContent
 
 import sys
-from io import TextIO
 from collections import deque
 
 # We use a deque with maxlen to keep only the last 1000 lines
