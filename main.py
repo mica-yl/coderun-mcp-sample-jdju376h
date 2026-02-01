@@ -11,7 +11,7 @@ from collections import deque
 # We use a deque with maxlen to keep only the last 1000 lines
 log_buffer = deque(maxlen=1000)
 
-class StreamTee(TextIO):
+class StreamTee:
     """Intercepts writes and sends them to both the original stream and our buffer."""
     def __init__(self, original_stream):
         self.original = original_stream
