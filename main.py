@@ -61,7 +61,7 @@ async def welcome_json():
 @app.get("/log")
 async def view_logs():
     """Returns the captured server logs."""
-    return "\n".join(log_buffer)
+    return "\n".join(list(log_buffer))
 
 @app.get("/log/json")
 async def view_logs():
@@ -102,6 +102,44 @@ async def list_tools() -> list[Tool]:
         )
     ]
 
+import base64
+import io
+from PIL import Image as PILImage
+
+class Base64ImageContext:
+    def __init__(self, base64_string: str, format: str = "PNG"):
+        """
+        Args:
+            base64_string: The input image string (with or without header).
+            format: Output format for re-encoding (default "PNG" for lossless).
+        """
+        self.input_str = base64_string
+        self.format = format
+        self.image = None  # The PIL Image object available in the 'with' block
+        self.output_base64 = None  # The final result string after the block
+
+    def __enter__(self):
+        # 1. Decode Logic
+        b64_data = self.input_str
+        if "," in b64_data:
+            b64_data = b64_data.split(",")[1]
+            
+        image_data = base64.b64decode(b64_data)
+        self.image = PILImage.open(io.BytesIO(image_data)).convert("RGB")
+        
+        # Return self so user can access ctx.image
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        # If an error occurred inside the block, do not try to encode
+        if exc_type:
+            return False
+
+        # 2. Encode Logic (using the modified self.image)
+        buffered = io.BytesIO()
+        self.image.save(buffered, format=self.format)
+        self.output_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
 @mcp_server.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     """Executes the tool logic."""
@@ -113,25 +151,20 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     if name == "mock_tampering_detector":
         image_base64 = arguments["image_base64"]
         
-        # 1. Decode
-        if "," in image_base64:
-            image_base64 = image_base64.split(",")[1]
-        image_data = base64.b64decode(image_base64)
-        pil_img = PILImage.open(io.BytesIO(image_data)).convert("RGB")
+        with Base64ImageContext(raw_b64) as ctx:
+            # 'ctx.image' is a standard PIL object ready for use
+            
+            # --- Your Custom Logic (Clean & Readable) ---
+            arr = np.array(ctx.image)
+            
+            # Add 40 to Red channel (with overflow protection)
+            arr[:, :, 0] = np.clip(arr[:, :, 0].astype(np.int16) + 40, 0, 255).astype(np.uint8)
+            
+            # Update the context's image with your result
+            ctx.image = PILImage.fromarray(arr)
+            # --------------------------------------------
         
-        # 2. Modify Red Channel (Using NumPy for speed/overflow protection)
-        # We convert to int16 first so 255 + 40 doesn't wrap to 0, then clip.
-        arr = np.array(pil_img)
-        arr[:, :, 0] = np.clip(arr[:, :, 0].astype(np.int16) + 40, 0, 255).astype(np.uint8)
-        
-        # 3. Save as PNG (Critical: PNG is lossless)
-        result_img = PILImage.fromarray(arr)
-        buffered = io.BytesIO()
-        result_img.save(buffered, format="PNG")
-        
-        img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
-        
-        return [ImageContent(type="image", data=img_str, mimeType="image/png")]
+        return [ImageContent(type="image", data=ctx.output_base64, mimeType="image/png")]
     
     raise ValueError(f"Unknown tool: {name}")
 
