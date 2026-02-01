@@ -158,7 +158,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     if name == "mock_tampering_detector":
         image_base64 = arguments["image_base64"]
         
-        with Base64ImageContext(raw_b64) as ctx:
+        with Base64ImageContext(image_base64) as ctx:
             # 'ctx.image' is a standard PIL object ready for use
             
             # --- Your Custom Logic (Clean & Readable) ---
