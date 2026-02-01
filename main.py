@@ -2,7 +2,7 @@ import uvicorn
 from fastapi import FastAPI, Request
 from mcp.server.sse import SseServerTransport
 from mcp.server import Server
-from mcp.types import Tool, TextContent
+from mcp.types import Tool, TextContent, ImageContent
 
 import sys
 from collections import deque
@@ -66,7 +66,7 @@ async def welcome_json():
     }
 
 @app.get("/log")
-async def view_logs():
+async def view_logs_text():
     """Returns the captured server logs."""
     return "\n".join(log_buffer)
 
@@ -149,7 +149,7 @@ class Base64ImageContext:
         self.output_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
 
 @mcp_server.call_tool()
-async def call_tool(name: str, arguments: dict) -> list[TextContent]:
+async def call_tool(name: str, arguments: dict) -> list[TextContent | ImageContent]:
     """Executes the tool logic."""
     if name == "uppercase":
         text = arguments.get("text", "")
