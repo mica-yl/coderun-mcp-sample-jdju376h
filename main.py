@@ -7,6 +7,12 @@ from mcp.types import Tool, TextContent, ImageContent
 import sys
 from collections import deque
 
+import base64
+import io
+from PIL import Image as PILImage
+import numpy as np
+import fitz  # PyMuPDF
+
 # We use a deque with maxlen to keep only the last 1000 lines
 log_buffer = deque(maxlen=1000)
 
@@ -109,10 +115,6 @@ async def list_tools() -> list[Tool]:
         )
     ]
 
-import base64
-import io
-from PIL import Image as PILImage
-import numpy as np
 
 def apply_mock_tampering_mask(image_np, alpha=0.4):
     """
@@ -196,24 +198,54 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent | ImageConte
         return [TextContent(type="text", text=result)]
     
     if name == "mock_tampering_detector":
-        image_base64 = arguments["image_base64"]
+        source_base64 = arguments["image_base64"]
         
-        with Base64ImageContext(image_base64) as ctx:
-            # 'ctx.image' is a standard PIL object ready for use
-            
-            # --- Your Custom Logic (Clean & Readable) ---
-            arr = np.array(ctx.image)
-            
-            # Add 40 to Red channel (with overflow protection)
-            # arr[:, :, 0] = np.clip(arr[:, :, 0].astype(np.int16) + 40, 0, 255).astype(np.uint8)
-            arr=apply_mock_tampering_mask(arr)
+        # 1. Decode header to check file type
+        header = ""
+        b64_data = source_base64
+        if "," in source_base64:
+            header, b64_data = source_base64.split(",", 1)
+        
+        raw_bytes = base64.b64decode(b64_data)
+        
+        # 2. Check if it's a PDF (PDF files start with %PDF)
+        is_pdf = raw_bytes.startswith(b"%PDF")
+        
+        results = []
+        
+        if is_pdf:
+            # --- PDF PROCESSING PATH ---
+            doc = fitz.open(stream=raw_bytes, filetype="pdf")
+            for page in doc:
+                # Render page to a high-res image (RGB)
+                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2)) # 2x zoom for clarity
+                img_pil = PILImage.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                
+                # Apply mask using NumPy
+                arr = np.array(img_pil)
+                # ... (reuse your tampering logic here) ...
+                processed_arr = apply_mock_tampering_mask(arr) # Your helper function
+                
+                # Encode back to Base64
+                out_img = PILImage.fromarray(processed_arr)
+                buf = io.BytesIO()
+                out_img.save(buf, format="PNG")
+                results.append(ImageContent(
+                    type="image", 
+                    data=base64.b64encode(buf.getvalue()).decode(), 
+                    mimeType="image/png"
+                ))
+            doc.close()
+        else:
+            # --- SINGLE IMAGE PATH ---
+            with Base64ImageContext(source_base64) as ctx:
+                arr = np.array(ctx.image)
+                processed_arr = apply_mock_tampering_mask(arr)
+                ctx.image = PILImage.fromarray(processed_arr)
+            results.append(ImageContent(type="image", data=ctx.output_base64, mimeType="image/png"))
 
-            # Update the context's image with your result
-            ctx.image = PILImage.fromarray(arr)
-            # --------------------------------------------
-        
-        return [ImageContent(type="image", data=ctx.output_base64, mimeType="image/png")]
-    
+        return results
+
     raise ValueError(f"Unknown tool: {name}")
 
 # --- PART C: MCP Protocol Wiring (SSE) ---
