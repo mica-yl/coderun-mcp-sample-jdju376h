@@ -114,6 +114,45 @@ import io
 from PIL import Image as PILImage
 import numpy as np
 
+def apply_mock_tampering_mask(image_np, alpha=0.4):
+    """
+    Takes an RGB numpy array and overlays a random red 'segmentation' mask.
+    
+    Args:
+        image_np: numpy array of shape (H, W, 3)
+        alpha: Transparency of the red mask (0.0 to 1.0)
+    """
+    h, w, _ = image_np.shape
+    
+    # 1. Create a blank boolean mask
+    mask = np.zeros((h, w), dtype=bool)
+    
+    # 2. Generate a random "tampered" region
+    # We'll pick a random center and size for a 'blob'
+    num_blobs = np.random.randint(1, 4)
+    for _ in range(num_blobs):
+        # Randomly choose a rect to represent a word or line being 'tampered'
+        bh = np.random.randint(20, h // 5)
+        bw = np.random.randint(50, w // 3)
+        y = np.random.randint(0, h - bh)
+        x = np.random.randint(0, w - bw)
+        mask[y:y+bh, x:x+bw] = True
+
+    # 3. Create an RGBA version of the original image
+    # Convert to float32 (0.0-1.0) for easier math
+    img_float = image_np.astype(np.float32) / 255.0
+    
+    # 4. Prepare the Red Mask Overlay
+    # We blend: (1 - alpha) * original + (alpha) * pure_red
+    red_color = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+    
+    # Apply the blend only where mask is True
+    result = img_float.copy()
+    result[mask] = (1 - alpha) * img_float[mask] + alpha * red_color
+    
+    # 5. Convert back to uint8 (0-255)
+    return (result * 255).astype(np.uint8)
+
 class Base64ImageContext:
     def __init__(self, base64_string: str, format: str = "PNG"):
         """
@@ -166,8 +205,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent | ImageConte
             arr = np.array(ctx.image)
             
             # Add 40 to Red channel (with overflow protection)
-            arr[:, :, 0] = np.clip(arr[:, :, 0].astype(np.int16) + 40, 0, 255).astype(np.uint8)
-            
+            # arr[:, :, 0] = np.clip(arr[:, :, 0].astype(np.int16) + 40, 0, 255).astype(np.uint8)
+            arr=apply_mock_tampering_mask(arr)
+
             # Update the context's image with your result
             ctx.image = PILImage.fromarray(arr)
             # --------------------------------------------
