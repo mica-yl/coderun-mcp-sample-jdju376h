@@ -476,9 +476,16 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent | ImageConte
         with Base64ImageContext(source_base64) as ctx:
             arr = np.array(ctx.image)
             try:
+                import time
+
+                start = time.perf_counter()
+
                 tensor=torch.tensor(arr.transpose(2, 0, 1), dtype=torch.float) / 256.0
                 pred_d = predict_one_tensor(model,tensor)
                 ctx.image = apply_mask(ctx.image,pred_d['map'] > 0.5)
+
+                end = time.perf_counter()
+                print(f"Execution time: {end - start:.4f} seconds")
             except Exception as e:
                 print(e)
                 raise e
