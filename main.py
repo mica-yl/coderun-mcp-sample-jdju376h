@@ -114,6 +114,17 @@ async def list_tools() -> list[Tool]:
             }
         ),
         Tool(
+            name="pdf_tampering_detector",
+            description="accepts pdf and returns images with red mask overlay",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "pdf_base64": {"type": "string", "description": "Base64 encoded pdf"}
+                },
+                "required": ["image_base64"]
+            }
+        ),
+        Tool(
             name="tampering_detector",
             description="accepts a pdf returns text result of tampering detector on image",
             inputSchema={
@@ -256,6 +267,56 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent | ImageConte
             results.append(ImageContent(type="image", data=ctx.output_base64, mimeType="image/png"))
 
         return results
+    
+    if name == "pdf_tampering_detector":
+        source_base64 = arguments["pdf_base64"]
+        
+        # 1. Decode header to check file type
+        header = ""
+        b64_data = source_base64
+        if "," in source_base64:
+            header, b64_data = source_base64.split(",", 1)
+        
+        raw_bytes = base64.b64decode(b64_data)
+        
+        # 2. Check if it's a PDF (PDF files start with %PDF)
+        is_pdf = raw_bytes.startswith(b"%PDF")
+        
+        results = []
+        
+        if is_pdf:
+            # --- PDF PROCESSING PATH ---
+            doc = fitz.open(stream=raw_bytes, filetype="pdf")
+            for page in doc:
+                # Render page to a high-res image (RGB)
+                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2)) # 2x zoom for clarity
+                img_pil = PILImage.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                
+                # Apply mask using NumPy
+                arr = np.array(img_pil)
+                # ... (reuse your tampering logic here) ...
+                processed_arr = apply_mock_tampering_mask(arr) # Your helper function
+                
+                # Encode back to Base64
+                out_img = PILImage.fromarray(processed_arr)
+                buf = io.BytesIO()
+                out_img.save(buf, format="PNG")
+                results.append(ImageContent(
+                    type="image", 
+                    data=base64.b64encode(buf.getvalue()).decode(), 
+                    mimeType="image/png"
+                ))
+            doc.close()
+        else:
+            # --- SINGLE IMAGE PATH ---
+            with Base64ImageContext(source_base64) as ctx:
+                arr = np.array(ctx.image)
+                processed_arr = apply_mock_tampering_mask(arr)
+                ctx.image = PILImage.fromarray(processed_arr)
+            results.append(ImageContent(type="image", data=ctx.output_base64, mimeType="image/png"))
+
+        return results
+
     if name == "tampering_detector":
         # source_base64 = arguments["pdf_base64"]
         import random
