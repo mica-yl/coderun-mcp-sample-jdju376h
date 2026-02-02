@@ -99,7 +99,7 @@ def predict_one_tensor(model, t):
     testloader = DataLoader(
         test_dataset,
         batch_size=1)   # 1 to allow arbitrary input sizes
-    pred = predict_one_tensor(model, testloader)[0]
+    pred = predict(model, testloader)[0]
     return pred
 
 
@@ -483,7 +483,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent | ImageConte
                 print(e)
                 raise e
         results.append(ImageContent(type="image", data=ctx.output_base64, mimeType="image/png"))
-        
+
         return results
     raise ValueError(f"Unknown tool: {name}")
 
