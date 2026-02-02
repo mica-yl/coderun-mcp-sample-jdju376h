@@ -76,6 +76,11 @@ async def view_logs_text():
     """Returns the captured server logs."""
     return "\n".join(log_buffer)
 
+@app.get("/works")
+async def works():
+    """Returns the captured server logs."""
+    return "it works"
+
 @app.get("/log/json")
 async def view_logs():
     """Returns the captured server logs."""
