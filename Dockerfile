@@ -24,6 +24,7 @@ WORKDIR /usr/src/app/TruFor/TruFor_train_test
 COPY main.py ./
 RUN pip install mcp fastapi uvicorn pillow numpy pymupdf
 # pytorch cpu
+
 # TruFor 
 
 
