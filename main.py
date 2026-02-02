@@ -26,6 +26,7 @@ from torch.nn import functional as F
 from lib.config import config, update_config
 from lib.utils import get_model
 from dataset.dataset_test import TestDataset
+from torch.utils.data import DataLoader, TensorDataset
 
 import argparse
 
@@ -46,7 +47,7 @@ def load_model(model_state_file,config,device=device):
   model = model.to(device)
   return model
 
-  def predict(model, testloader):
+def predict(model, testloader):
     results_d=[]
     with torch.no_grad():
         for index, [rgb] in enumerate(tqdm(testloader)):
@@ -86,7 +87,7 @@ def load_model(model_state_file,config,device=device):
             results_d.append(out_dict)
     return results_d
 
-def predict_tensor(model, t):
+def predict_one_tensor(model, t):
     # 2. Extract only the tensors and stack them using torch.stack
     # list_of_tensors_only = [item[0] for item in list_img]
     # tensors_img = torch.stack(list_of_tensors_only)
@@ -98,7 +99,7 @@ def predict_tensor(model, t):
     testloader = DataLoader(
         test_dataset,
         batch_size=1)   # 1 to allow arbitrary input sizes
-    pred = predict(model, testloader)
+    pred = predict_one_tensor(model, testloader)[0]
     return pred
 
 
@@ -130,6 +131,7 @@ def apply_mask(pil_img, mask, color=(255, 0, 0), alpha=0.5):
 
 # apply_mask(image,pred > 0.5 )
 
+model=load_model(model_state_file,config,device=device)
 
 # We use a deque with maxlen to keep only the last 1000 lines
 log_buffer = deque(maxlen=1000)
@@ -473,7 +475,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent | ImageConte
         # --- SINGLE IMAGE PATH ---
         with Base64ImageContext(source_base64) as ctx:
             arr = np.array(ctx.image)
-            pred_d = predict_tensor(model,arr)
+            pred_d = predict_one_tensor(model,arr)
             ctx.image = apply_mask(ctx.image,pred_d['pred'] > 0.5)
         results.append(ImageContent(type="image", data=ctx.output_base64, mimeType="image/png"))
 
