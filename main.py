@@ -13,6 +13,124 @@ from PIL import Image as PILImage
 import numpy as np
 import fitz  # PyMuPDF
 
+## model
+import sys, os
+import argparse
+import numpy as np
+from tqdm import tqdm
+from glob import glob
+
+import torch
+from torch.nn import functional as F
+
+from lib.config import config, update_config
+from lib.utils import get_model
+from dataset.dataset_test import TestDataset
+
+import argparse
+
+
+args = argparse.Namespace(experiment="trufor_ph3",opts=None)
+update_config(config, args)
+
+device= "cpu"
+# device= "cuda"
+model_state_file = '/usr/src/app/TruFor/weights/trufor.pth.tar'
+
+def load_model(model_state_file,config,device=device):
+  print('=> loading model from {}'.format(model_state_file))
+  checkpoint = torch.load(model_state_file, map_location=torch.device(device),weights_only=False)
+  print("Epoch: {}".format(checkpoint['epoch']))
+  model = get_model(config)
+  model.load_state_dict(checkpoint['state_dict'])
+  model = model.to(device)
+  return model
+
+  def predict(model, testloader):
+    results_d=[]
+    with torch.no_grad():
+        for index, [rgb] in enumerate(tqdm(testloader)):
+            rgb = rgb.to(device)
+
+            model.eval()
+
+            det  = None
+            conf = None
+
+            pred, conf, det, npp = model(rgb)
+            if conf is not None:
+                conf = torch.squeeze(conf, 0)
+                conf = torch.sigmoid(conf)[0]
+                conf = conf.cpu().numpy()
+
+            if npp is not None:
+                npp = torch.squeeze(npp, 0)[0]
+                npp = npp.cpu().numpy()
+
+            if det is not None:
+                det_sig = torch.sigmoid(det).item()
+
+            pred = torch.squeeze(pred, 0)
+            pred = F.softmax(pred, dim=0)[1]
+            pred = pred.cpu().numpy()
+
+            out_dict = dict()
+            out_dict['map'    ] = pred
+            out_dict['imgsize'] = tuple(rgb.shape[2:])
+            if det is not None:
+                out_dict['score'] = det_sig
+            if conf is not None:
+                out_dict['conf'] = conf
+            out_dict['np++'] = npp
+
+            results_d.append(out_dict)
+    return results_d
+
+def predict_tensor(model, t):
+    # 2. Extract only the tensors and stack them using torch.stack
+    # list_of_tensors_only = [item[0] for item in list_img]
+    # tensors_img = torch.stack(list_of_tensors_only)
+    tensors_img = torch.stack([t])
+
+    # 3. Create Dataset
+    # TensorDataset requires a tensor
+    test_dataset = TensorDataset(tensors_img)
+    testloader = DataLoader(
+        test_dataset,
+        batch_size=1)   # 1 to allow arbitrary input sizes
+    pred = predict(model, testloader)
+    return pred
+
+
+
+def apply_mask(pil_img, mask, color=(255, 0, 0), alpha=0.5):
+    """
+    Overlays a mask like Matplotlib's 'imshow(mask, alpha=0.5)'.
+
+    color: (R, G, B) tuple
+    alpha: 0.0 to 1.0
+    """
+    # 1. Convert original to RGBA
+    base =np.array(pil_img.convert("RGBA")).astype(np.float32) # Use float for precise math
+
+    # 2. Create an empty RGBA array for the mask layer
+    h, w = mask.shape
+    mask_rgba = np.zeros((h, w, 4), dtype=np.float32)
+
+    # 3. Fill the 'True' areas of the mask layer with color and alpha
+    # Matplotlib alpha works by multiplying the color channel
+    mask_rgba[mask, 0:3] = color
+    mask_rgba[mask, 3] = alpha * 255  # Convert 0-1.0 to 0-255
+
+    # 4. Create the mask Image and composite
+    mask_image = PILImage.fromarray(mask_rgba.astype(np.uint8), "RGBA")
+
+    # This is the "secret sauce" that mimics Matplotlib's layering
+    return PILImage.alpha_composite(pil_img.convert("RGBA"), mask_image)
+
+# apply_mask(image,pred > 0.5 )
+
+
 # We use a deque with maxlen to keep only the last 1000 lines
 log_buffer = deque(maxlen=1000)
 
@@ -138,6 +256,17 @@ async def list_tools() -> list[Tool]:
                     "pdf_base64": {"type": "string", "description": "Base64 encoded pdf"}
                 },
                 "required": ["pdf_base64"]
+            }
+        ),
+        Tool(
+            name="tampering_detector_image",
+            description="accepts an image returns a masked version of the image.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "image_base64": {"type": "string", "description": "Base64 encoded image"}
+                },
+                "required": ["image_base64"]
             }
         )
     ]
@@ -327,6 +456,28 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent | ImageConte
         import random
         result = random.choice(["document is suspected for having tampering regions", "document is not suspected for having tampering regions"])
         return [TextContent(type="text", text=result)]
+
+    if name == "tampering_detector_image":
+        source_base64 = arguments["image_base64"]
+        
+        # 1. Decode header to check file type
+        header = ""
+        b64_data = source_base64
+        if "," in source_base64:
+            header, b64_data = source_base64.split(",", 1)
+        
+        raw_bytes = base64.b64decode(b64_data)
+        
+        results = []
+
+        # --- SINGLE IMAGE PATH ---
+        with Base64ImageContext(source_base64) as ctx:
+            arr = np.array(ctx.image)
+            pred_d = predict_tensor(model,arr)
+            ctx.image = apply_mask(ctx.image,pred_d['pred'] > 0.5)
+        results.append(ImageContent(type="image", data=ctx.output_base64, mimeType="image/png"))
+
+        return results
     raise ValueError(f"Unknown tool: {name}")
 
 # --- PART C: MCP Protocol Wiring (SSE) ---
