@@ -475,11 +475,15 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent | ImageConte
         # --- SINGLE IMAGE PATH ---
         with Base64ImageContext(source_base64) as ctx:
             arr = np.array(ctx.image)
-            tensor=torch.tensor(arr.transpose(2, 0, 1), dtype=torch.float) / 256.0
-            pred_d = predict_one_tensor(model,tensor)
-            ctx.image = apply_mask(ctx.image,pred_d['pred'] > 0.5)
+            try:
+                tensor=torch.tensor(arr.transpose(2, 0, 1), dtype=torch.float) / 256.0
+                pred_d = predict_one_tensor(model,tensor)
+                ctx.image = apply_mask(ctx.image,pred_d['pred'] > 0.5)
+            except Exception as e:
+                print(e)
+                raise e
         results.append(ImageContent(type="image", data=ctx.output_base64, mimeType="image/png"))
-
+        
         return results
     raise ValueError(f"Unknown tool: {name}")
 
