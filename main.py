@@ -485,22 +485,28 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent | ImageConte
 
                 mask_np=pred_d['map'] > 0.5
                 
-                modification_percent=(mask_np.sum()/mask_np.size) * 100
-                results.append(
-                    TextContent(type="text", 
-                    text=f"Modification percentage: {modification_percent:.3f}%\nwhole-image integrity score: {pred_d['score']:.2f}"
-                    # text="Modification percentage: 0.000%\nwhole-image integrity score: 0.00"
-                    ))
                 
                 
                 ctx.image = apply_mask(ctx.image,mask_np)
                 #------
                 end = time.perf_counter()
-                print(f"Execution time: {end - start:.4f} seconds")
+
+                modification_percent=(mask_np.sum()/mask_np.size) * 100
                 results.append(
                     TextContent(type="text", 
-                        text=f"Execution time: {end - start:.4f} seconds"
+                    text=f"Modification percentage: {modification_percent:.3f}%\nwhole-image integrity score: {pred_d['score']:.4f}",
+                    # text="Modification percentage: 0.000%\nwhole-image integrity score: 0.00"
+                    meta={
+                        "execution_time_sec": f"{end - start:.4f}",
+                        "internal_id": "task_99"
+                    }
                     ))
+                
+                print(f"Execution time: {end - start:.4f} seconds")
+                # results.append(
+                #     TextContent(type="text", 
+                #         text=f"Execution time: {end - start:.4f} seconds"
+                #     ))
             except Exception as e:
                 print(e)
                 raise e
