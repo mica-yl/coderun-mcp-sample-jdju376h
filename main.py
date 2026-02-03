@@ -482,9 +482,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent | ImageConte
                 # ------
                 tensor=torch.tensor(arr.transpose(2, 0, 1), dtype=torch.float) / 256.0
                 pred_d = predict_one_tensor(model,tensor)
-                
-                mask_tensor=pred_d['map'] > 0.5
-                mask_np = mask_tensor.detach().cpu().numpy()
+
+                mask_np=pred_d['map'] > 0.5
                 mask = mask_np.astype(np.uint8)
 
                 # modification_percent=(mask.sum()/mask.size) * 100
