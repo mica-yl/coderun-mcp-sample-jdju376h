@@ -485,7 +485,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent | ImageConte
 
                 mask_np=pred_d['map'] > 0.5
                 
-                modification_percent=(mask.sum()/mask.size) * 100
+                modification_percent=(mask_np.sum()/mask_np.size) * 100
                 results.append(
                     TextContent(type="text", 
                     text=f"Modification percentage: {modification_percent:.3f}%\nwhole-image integrity score: {pred_d['score']:.2f}"
