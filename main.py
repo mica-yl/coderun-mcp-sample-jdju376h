@@ -482,18 +482,18 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent | ImageConte
                 # ------
                 tensor=torch.tensor(arr.transpose(2, 0, 1), dtype=torch.float) / 256.0
                 pred_d = predict_one_tensor(model,tensor)
-                threshold=pred_d['map'] > 0.5
+                mask=pred_d['map'] > 0.5
                 
-                # modification_percent=(threshold.sum()/threshold.size) * 100
+                # modification_percent=(mask.sum()/mask.size) * 100
                 results.append(
                     TextContent(type="text", 
                     # text=f"Modification percentage: {modification_percent:.3f}%\nwhole-image integrity score: {pred_d['score']:.2f}"
                     text="Modification percentage: 0.000%\nwhole-image integrity score: 0.00"
                     ))
                 
-                threshold = threshold.astype(np.uint8)
+                mask = mask.astype(np.uint8)
                 
-                ctx.image = apply_mask(ctx.image,threshold)
+                ctx.image = apply_mask(ctx.image,mask)
                 #------
                 end = time.perf_counter()
                 print(f"Execution time: {end - start:.4f} seconds")
