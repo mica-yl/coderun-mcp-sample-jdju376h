@@ -484,8 +484,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent | ImageConte
                 pred_d = predict_one_tensor(model,tensor)
 
                 mask_np=pred_d['map'] > 0.5
-                mask = mask_np.astype(np.uint8)
-
+                
                 # modification_percent=(mask.sum()/mask.size) * 100
                 results.append(
                     TextContent(type="text", 
@@ -493,9 +492,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent | ImageConte
                     text="Modification percentage: 0.000%\nwhole-image integrity score: 0.00"
                     ))
                 
-                mask = mask.astype(np.uint8)
                 
-                ctx.image = apply_mask(ctx.image,mask)
+                ctx.image = apply_mask(ctx.image,mask_np)
                 #------
                 end = time.perf_counter()
                 print(f"Execution time: {end - start:.4f} seconds")
