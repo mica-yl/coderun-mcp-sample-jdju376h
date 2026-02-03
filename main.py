@@ -479,16 +479,20 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent | ImageConte
                 import time
 
                 start = time.perf_counter()
-
+                # ------
                 tensor=torch.tensor(arr.transpose(2, 0, 1), dtype=torch.float) / 256.0
                 pred_d = predict_one_tensor(model,tensor)
                 threshold=pred_d['map'] > 0.5
-                threshold = threshold.astype(np.uint8)
-                ctx.image = apply_mask(ctx.image,threshold)
+                
                 modification_percent=(threshold.sum()/threshold.size) * 100
                 results.append(
                     TextContent(type="text", 
-                    text=f"Modification percentage: {modification_percent:.2f}%\nwhole-image integrity score: {pred_d['score']:.2f}"))
+                    text=f"Modification percentage: {modification_percent:.3f}%\nwhole-image integrity score: {pred_d['score']:.2f}"))
+                
+                threshold = threshold.astype(np.uint8)
+                
+                ctx.image = apply_mask(ctx.image,threshold)
+                #------
                 end = time.perf_counter()
                 print(f"Execution time: {end - start:.4f} seconds")
             except Exception as e:
