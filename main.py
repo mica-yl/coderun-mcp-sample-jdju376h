@@ -497,6 +497,10 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent | ImageConte
                 #------
                 end = time.perf_counter()
                 print(f"Execution time: {end - start:.4f} seconds")
+                results.append(
+                    TextContent(type="text", 
+                        text=f"Execution time: {end - start:.4f} seconds"
+                    ))
             except Exception as e:
                 print(e)
                 raise e
