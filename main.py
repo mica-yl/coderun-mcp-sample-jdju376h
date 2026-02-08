@@ -210,6 +210,61 @@ async def view_logs():
         "logs": list(log_buffer)
     }
 
+# Define the expected structure of the JSON body
+class InputData(BaseModel):
+    image_base64: str
+
+@app.post("/api/v1/doc-tamper-detection")
+def doc_tamper_detection(item: InputData):
+    """accepts a base64 encoded image and returns a mask and a modification percentage."""
+    source_base64=item.image_base64
+    # 1. Decode header to check file type
+    header = ""
+    b64_data = source_base64
+    if "," in source_base64:
+        header, b64_data = source_base64.split(",", 1)
+    
+    raw_bytes = base64.b64decode(b64_data)
+    
+    result= {
+        "mask_b64":None,
+        "score":None,
+        "excution_time_sec":None,
+        "modification_percentage":None
+    }
+
+    # --- SINGLE IMAGE PATH ---
+    with Base64ImageContext(source_base64) as ctx:
+        arr = np.array(ctx.image)
+        try:
+            import time
+
+            start = time.perf_counter()
+            # ------
+            tensor=torch.tensor(arr.transpose(2, 0, 1), dtype=torch.float) / 256.0 # FIXME 255
+            pred_d = predict_one_tensor(model,tensor)
+
+            mask_np=pred_d['map'] > 0.5
+            
+            
+            
+            ctx.image = apply_mask(ctx.image,mask_np)
+            #------
+            end = time.perf_counter()
+
+            modification_percent=(mask_np.sum()/mask_np.size) * 100
+
+            result['excution_time_sec']=end - start
+            result['mask_b64']=ctx.output_base64
+            result['score']=pred_d['score']
+            result['modification_percentage']=modification_percent
+            
+        except Exception as e:
+            print(e)
+            raise e
+    
+    return result
+
 # --- PART B: MCP Tool Logic ---
 
 @mcp_server.list_tools()
