@@ -1,5 +1,6 @@
 import uvicorn
 from fastapi import FastAPI, Request
+from pydantic import BaseModel
 from mcp.server.sse import SseServerTransport
 from mcp.server import Server
 from mcp.types import Tool, TextContent, ImageContent
