@@ -213,7 +213,7 @@ async def view_logs():
 # Define the expected structure of the JSON body
 class InputData(BaseModel):
     image_base64: str
-
+#
 @app.post("/api/v1/doc-tamper-detection")
 def doc_tamper_detection(item: InputData):
     """accepts a base64 encoded image and returns a mask and a modification percentage."""
