@@ -256,13 +256,14 @@ def doc_tamper_detection(item: InputData):
             modification_percent=(mask_np.sum()/mask_np.size) * 100
 
             result['excution_time_sec']=end - start
-            result['mask_b64']=ctx.output_base64
+            
             result['score']=pred_d['score']
             result['modification_percentage']=modification_percent
             
         except Exception as e:
             print(e)
             raise e
+    result['mask_b64']=ctx.output_base64
     
     return result
 
