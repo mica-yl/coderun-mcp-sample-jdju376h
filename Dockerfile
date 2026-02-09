@@ -7,6 +7,7 @@ RUN pip install mcp fastapi uvicorn pillow numpy pymupdf
 
 
 COPY main.py ./
+COPY demo.html ./
 # pytorch cpu
 
 # TruFor 
