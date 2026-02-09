@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Tampering Detection UI</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            text-align: center;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #image-box {
+            position: relative;
+            width: 400px;
+            height: 300px;
+            border: 1px solid #ccc;
+            margin: 20px auto;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #image-box img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        #spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: none;
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: translate(-50%, -50%) rotate(0deg);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
+        }
+
+        button,
+        input[type="file"] {
+            margin: 10px;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+
+        #results {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2>Document Tamper Detection</h2>
+        <input type="file" id="file-upload" accept="image/*">
+        <button id="upload-btn">Select Image</button>
+        <div id="image-box">
+            <img id="preview" src="" alt="Image Preview">
+            <div id="spinner"></div>
+        </div>
+        <button id="api-btn" disabled>Detect Tampering</button>
+        <div id="results">
+            <p id="error"></p>
+            <!-- <p>Score: <span id="score"></span></p> -->
+            <p>Modification Percentage: <span id="modification_percentage"
+                    style="background-color: #0bf0a3;border-radius: 0.4em;padding: 0.3em;">???</span></p>
+            <!-- <p>Execution Time: <span id="execution_time"></span> seconds</p> -->
+        </div>
+    </div>
+
+    <script>
+        const api_base_url = ""; // root
+        const fileUpload = document.getElementById('file-upload');
+        const uploadBtn = document.getElementById('upload-btn');
+        const apiBtn = document.getElementById('api-btn');
+        const preview = document.getElementById('preview');
+        const spinner = document.getElementById('spinner');
+        const results = document.getElementById('results');
+        // const score = document.getElementById('score');
+        const modificationPercentage = document.getElementById('modification_percentage');
+        // const executionTime = document.getElementById('execution_time');
+
+        let imageBase64 = '';
+        const view_image_f = (_event) => {
+            const file = fileUpload.files[0];
+            console.log("files:", fileUpload.files);
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imageBase64 = e.target.result.split(',')[1]; // Get base64 without prefix
+                    preview.src = e.target.result;
+                    apiBtn.disabled = false;
+                    console.log("image base:", imageBase64)
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+        fileUpload.addEventListener('change', view_image_f);
+        uploadBtn.addEventListener('click', view_image_f);
+
+        apiBtn.addEventListener('click', async () => {
+            spinner.style.display = 'block';
+            apiBtn.disabled = true;
+
+            try {
+                const response = await fetch(api_base_url + '/api/v1/doc-tamper-detection', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ image_base64: imageBase64 })
+                });
+
+                if (!response.ok) {
+                    throw new Error('API request failed');
+                }
+
+                const data = await response.json();
+                preview.src = `data:image/png;base64,${data.mask_b64}`;
+                // FIXME Assumes api returns numbers
+                // score.textContent = data.score.toFixed(5);
+                modificationPercentage.textContent = data.modification_percentage.toFixed(3);
+                // executionTime.textContent = data.excution_time_sec.toFixed(3);
+                console.log("document inference: ", data.excution_time_sec);
+            } catch (error) {
+                console.error(error);
+                error.textContent = 'Error detecting tampering. Please try again.';
+            } finally {
+                spinner.style.display = 'none';
+                apiBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+
+</html>

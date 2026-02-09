@@ -2,6 +2,8 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from fastapi.responses import FileResponse, HTMLResponse
+
 from mcp.server.sse import SseServerTransport
 from mcp.server import Server
 from mcp.types import Tool, TextContent, ImageContent
@@ -220,6 +222,11 @@ async def view_logs():
         "entry_count": len(log_buffer),
         "logs": list(log_buffer)
     }
+
+# Serve the demo.html file at /demo
+@app.get("/demo", response_class=HTMLResponse)
+async def serve_demo():
+    return FileResponse("demo.html")
 
 # Define the expected structure of the JSON body
 class InputData(BaseModel):
