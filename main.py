@@ -1,5 +1,6 @@
 import uvicorn
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from mcp.server.sse import SseServerTransport
 from mcp.server import Server
@@ -31,7 +32,17 @@ from torch.utils.data import DataLoader, TensorDataset
 
 import argparse
 
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins; for production, specify your frontend origin (e.g., ["http://localhost:8000"])
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allows all headers
+)
 
+
+### Model
 args = argparse.Namespace(experiment="trufor_ph3",opts=None)
 update_config(config, args)
 
@@ -264,7 +275,7 @@ def doc_tamper_detection(item: InputData):
             print(e)
             raise e
     result['mask_b64']=ctx.output_base64
-    
+
     return result
 
 # --- PART B: MCP Tool Logic ---
