@@ -75,12 +75,47 @@
         #results {
             margin-top: 20px;
         }
+
+        /* Modal styles for gallery popup */
+        #modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            /* Helps with centering if needed */
+        }
+
+        #modal-img {
+            max-width: 90%;
+            max-height: 90%;
+            transform-origin: center center;
+            transition: transform 0.1s ease;
+            /* Smooth zoom transition */
+        }
+
+        .close {
+            position: absolute;
+            top: 20px;
+            right: 35px;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <h2>Document Tamper Detection</h2>
+        <h2>Document Tampering Detection</h2>
         <input type="file" id="file-upload" accept="image/*">
         <button id="upload-btn">Select Image</button>
         <div id="image-box">
@@ -95,6 +130,11 @@
                     style="background-color: #0bf0a3;border-radius: 0.4em;padding: 0.3em;">???</span></p>
             <!-- <p>Execution Time: <span id="execution_time"></span> seconds</p> -->
         </div>
+        <!-- Modal for image popup -->
+        <div id="modal">
+            <span class="close">&times;</span>
+            <img id="modal-img" src="">
+        </div>
     </div>
 
     <script>
@@ -105,11 +145,21 @@
         const preview = document.getElementById('preview');
         const spinner = document.getElementById('spinner');
         const results = document.getElementById('results');
+        const modal = document.getElementById('modal');
+        const modalImg = document.getElementById('modal-img');
+        const closeBtn = document.querySelector('.close');
+
         // const score = document.getElementById('score');
         const modificationPercentage = document.getElementById('modification_percentage');
         // const executionTime = document.getElementById('execution_time');
 
         let imageBase64 = '';
+
+        let zoomLevel = 1;
+        const zoomStep = 0.1; // Amount to zoom per wheel event
+        const minZoom = 0.5;
+        const maxZoom = 5;
+
         const view_image_f = (_event) => {
             const file = fileUpload.files[0];
             console.log("files:", fileUpload.files);
@@ -126,6 +176,37 @@
         }
         fileUpload.addEventListener('change', view_image_f);
         uploadBtn.addEventListener('click', view_image_f);
+
+        // Close modal on click
+        closeBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+        modal.addEventListener('click', (e) => {
+            if (e.target !== modalImg) {
+                modal.style.display = 'none';
+            }
+        });
+        // Zoom with mouse wheel
+        modal.addEventListener('wheel', (e) => {
+            e.preventDefault(); // Prevent page scrolling
+            const delta = e.deltaY < 0 ? zoomStep : -zoomStep; // Up for zoom in, down for out
+            zoomLevel = Math.min(Math.max(zoomLevel + delta, minZoom), maxZoom);
+            modalImg.style.transform = `scale(${zoomLevel})`;
+        });
+
+        // Open modal on image click
+        function openModal(src) {
+            modalImg.src = src;
+            modal.style.display = 'flex';
+            zoomLevel = 1; // Reset zoom on open
+            modalImg.style.transform = `scale(${zoomLevel})`;
+        }
+
+        document.getElementById('image-box').addEventListener('click', () => {
+            if (preview.src) {
+                openModal(preview.src);
+            }
+        });
 
         apiBtn.addEventListener('click', async () => {
             spinner.style.display = 'block';
