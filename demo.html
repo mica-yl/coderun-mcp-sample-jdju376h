@@ -11,9 +11,9 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
-            background-color: #f4f4f4;
+            background-color: #0e4566;
         }
 
         .container {
@@ -85,17 +85,25 @@
             top: 0;
             width: 100%;
             height: 100%;
-            overflow: auto;
+            overflow: scroll;
+            padding: 20px;
+            /* Buffer for scrolling */
             background-color: rgba(0, 0, 0, 0.8);
             justify-content: center;
             align-items: center;
             flex-direction: column;
             /* Helps with centering if needed */
+            padding: 60px 20px 20px;
+            /* Added top padding for close button space */
+            box-sizing: border-box;
         }
 
         #modal-img {
             max-width: 90%;
             max-height: 90%;
+            display: block;
+            /* Ensure consistent layout */
+            /* margin: 0 auto; */
             transform-origin: center center;
             transition: transform 0.1s ease;
             /* Smooth zoom transition */
@@ -114,37 +122,46 @@
 </head>
 
 <body>
-    <div class="container">
-        <h2>Document Tampering Detection</h2>
-        <input type="file" id="file-upload" accept="image/*">
-        <button id="upload-btn">Select Image</button>
-        <div id="image-box">
-            <img id="preview" src="" alt="Image Preview">
-            <div id="spinner"></div>
-        </div>
-        <button id="api-btn" disabled>Detect Tampering</button>
-        <div id="results">
-            <p id="error"></p>
-            <!-- <p>Score: <span id="score"></span></p> -->
-            <p>Modification Percentage: <span id="modification_percentage"
-                    style="background-color: #0bf0a3;border-radius: 0.4em;padding: 0.3em;">???</span></p>
-            <!-- <p>Execution Time: <span id="execution_time"></span> seconds</p> -->
-        </div>
-        <!-- Modal for image popup -->
-        <div id="modal">
-            <span class="close">&times;</span>
-            <img id="modal-img" src="">
+    <div style="display: block;">
+        <img alt="Valleysoft Logo" loading="lazy" width="210" height="52" decoding="async" data-nimg="1"
+            class="footerLogo" style="color:transparent;padding: 0.2em;"
+            srcset="https://www.valleysoft-eg.com/_next/image?url=%2Fimages%2FVsoftLogo.png&amp;w=256&amp;q=75 1x, /_next/image?url=%2Fimages%2FVsoftLogo.png&amp;w=640&amp;q=75 2x"
+            src="https://www.valleysoft-eg.com/_next/image?url=%2Fimages%2FVsoftLogo.png&amp;w=640&amp;q=75">
+        <div class="container">
+            <h2>Document Tampering Detection</h2>
+            <input type="file" id="file-upload" accept="image/*">
+            <button id="upload-btn">Select Image</button>
+            <div id="image-box">
+                <img id="preview" src="" alt="Image Preview">
+                <div id="spinner"></div>
+            </div>
+            <button id="api-btn" disabled>Detect Tampering</button>
+            <div id="results">
+                <p><span id="error"></span></p>
+                <!-- <p>Score: <span id="score"></span></p> -->
+                <p>Modification Percentage: <span id="modification_percentage"
+                        style="background-color: #0bf0a3;border-radius: 0.4em;padding: 0.3em;">???</span></p>
+                <!-- <p>Execution Time: <span id="execution_time"></span> seconds</p> -->
+            </div>
+            <!-- Modal for image popup -->
+            <div id="modal">
+                <span class="close">&times;</span>
+                <img id="modal-img" src="">
+            </div>
         </div>
     </div>
 
+
     <script>
         const api_base_url = ""; // root
+
         const fileUpload = document.getElementById('file-upload');
         const uploadBtn = document.getElementById('upload-btn');
         const apiBtn = document.getElementById('api-btn');
         const preview = document.getElementById('preview');
         const spinner = document.getElementById('spinner');
         const results = document.getElementById('results');
+        const error_area = document.getElementById('error');
         const modal = document.getElementById('modal');
         const modalImg = document.getElementById('modal-img');
         const closeBtn = document.querySelector('.close');
@@ -188,18 +205,24 @@
         });
         // Zoom with mouse wheel
         modal.addEventListener('wheel', (e) => {
-            e.preventDefault(); // Prevent page scrolling
-            const delta = e.deltaY < 0 ? zoomStep : -zoomStep; // Up for zoom in, down for out
+            if (e.ctrlKey || e.metaKey) { // Use Ctrl/Cmd + wheel for zoom to distinguish from scrolling
+                return;
+                // No preventDefault otherwise, to allow normal scrolling
+            }
+            e.preventDefault();
+            const delta = e.deltaY < 0 ? zoomStep : -zoomStep;
             zoomLevel = Math.min(Math.max(zoomLevel + delta, minZoom), maxZoom);
             modalImg.style.transform = `scale(${zoomLevel})`;
-        });
+        }, { passive: false });
 
         // Open modal on image click
         function openModal(src) {
             modalImg.src = src;
             modal.style.display = 'flex';
-            zoomLevel = 1; // Reset zoom on open
+            zoomLevel = 1; // Reset zoom to fit (combined with CSS max-width/max-height)
             modalImg.style.transform = `scale(${zoomLevel})`;
+            modal.scrollTop = (modal.scrollHeight - modal.clientHeight) / 2 || 0; // Initial vertical center
+            modal.scrollLeft = (modal.scrollWidth - modal.clientWidth) / 2 || 0; // Initial horizontal center
         }
 
         document.getElementById('image-box').addEventListener('click', () => {
@@ -232,9 +255,10 @@
                 modificationPercentage.textContent = data.modification_percentage.toFixed(3);
                 // executionTime.textContent = data.excution_time_sec.toFixed(3);
                 console.log("document inference: ", data.excution_time_sec);
+                error_area.textContent = '';
             } catch (error) {
                 console.error(error);
-                error.textContent = 'Error detecting tampering. Please try again.';
+                error_area.textContent = 'Error detecting tampering. Please try again.';
             } finally {
                 spinner.style.display = 'none';
                 apiBtn.disabled = false;
