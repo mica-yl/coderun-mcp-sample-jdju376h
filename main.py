@@ -32,15 +32,6 @@ from torch.utils.data import DataLoader, TensorDataset
 
 import argparse
 
-# Enable CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins; for production, specify your frontend origin (e.g., ["http://localhost:8000"])
-    allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods (GET, POST, etc.)
-    allow_headers=["*"],  # Allows all headers
-)
-
 
 ### Model
 args = argparse.Namespace(experiment="trufor_ph3",opts=None)
@@ -177,6 +168,14 @@ app = FastAPI(title="My MCP Server")
 mcp_server = Server("demo-server")
 sse_transport = SseServerTransport("/messages")
 
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins; for production, specify your frontend origin (e.g., ["http://localhost:8000"])
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allows all headers
+)
 # --- PART A: Standard Web Endpoints ---
 
 @app.get("/")
